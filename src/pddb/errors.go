@@ -12,4 +12,8 @@ var (
 	ErrVersionMismatch = errors.New("version mismatch")
 	// 文件校验合错误
 	ErrChecksum = errors.New("checksum error")
+	// 确保数据库访问时数据库已经打开
+	ErrDatabaseNotOpen = errors.New("database not open")
+	// 数据库只读错误
+	ErrDatabaseReadOnly = errors.New("database read only")
 )

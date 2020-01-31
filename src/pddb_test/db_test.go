@@ -65,6 +65,61 @@ func TestOpen_ErrInvalid(t *testing.T) {
 	}
 }
 
+// Ensure that a database cannot open a transaction when it's not open.
+func TestDB_Begin_ErrDatabaseNotOpen(t *testing.T) {
+	var db pddb.DB
+	if _, err := db.Begin(false); err != pddb.ErrDatabaseNotOpen {
+		t.Fatalf("unexpected error: %s", err)
+	}
+}
+
+// Ensure that a read-write transaction can be retrieved.
+func TestDB_BeginRW(t *testing.T) {
+	db := MustOpenDB()
+	defer MustClose(db)
+
+	tx, err := db.Begin(true)
+	if err != nil {
+		t.Fatal(err)
+	} else if tx == nil {
+		t.Fatal("expected tx")
+	}
+
+	if tx.DB() != db {
+		t.Fatal("unexpected tx database")
+	} else if !tx.Writeable() {
+		t.Fatal("expected writable tx")
+	}
+
+	if err := tx.Commit(); err != nil {
+		t.Fatal(err)
+	}
+}
+
+// Ensure that opening a transaction while the DB is closed returns an error.
+func TestDB_BeginRW_Closed(t *testing.T) {
+	var db pddb.DB
+	if _, err := db.Begin(true); err != pddb.ErrDatabaseNotOpen {
+		t.Fatalf("unexpected error: %s", err)
+	}
+}
+
+// MustOpenDB returns a new, open DB at a temporary location.
+func MustOpenDB() *pddb.DB {
+	db, err := pddb.Open(tempfile(), 0666, nil)
+	if err != nil {
+		panic(err)
+	}
+	return db
+}
+
+// MustClose closes the database and deletes the underlying file. Panic on error.
+func MustClose(db *pddb.DB) {
+	if err := db.Close(); err != nil {
+		panic(err)
+	}
+}
+
 // 返回临时文件路径
 func tempfile() string {
 	file, err := ioutil.TempFile("", "pddb-")

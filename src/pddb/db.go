@@ -55,12 +55,30 @@ type DB struct {
 	meta0    *meta
 	meta1    *meta
 	freelist *freelist
+	rwtx *Tx
+	txs []*Tx
+	stats Stats
 
 	// 用于保护数据库重新映射的过程
 	mmaplock sync.RWMutex
+	// 保护元数据写过程
+	metalock sync.Mutex
+	// 保护数据库状态
+	statlock sync.RWMutex
+	// 保护数据写过程
+	rwlock sync.Mutex
 
 	// 数据库只读选项
 	readOnly bool
+}
+
+// 开启一个新事务
+// 只允许一个写事务
+func (db *DB) Begin(writeable bool) (*Tx, error) {
+	if writeable {
+		return db.beginRWTx()
+	}
+	return db.beginTx()
 }
 
 func (db *DB) Path() string {
@@ -73,6 +91,62 @@ func (db *DB) Close() error {
 	defer db.mmaplock.Unlock()
 
 	return db.close()
+}
+
+// 开始一个只读事务
+func (db *DB) beginTx() (*Tx, error) {
+	// 注意加锁顺序
+	db.metalock.Lock()
+	db.mmaplock.RLock()
+	// 检查数据库是否已经打开
+	if !db.opened {
+		db.mmaplock.RUnlock()
+		db.metalock.Unlock()
+		return nil, ErrDatabaseNotOpen
+	}
+	// 创建与数据库关联的事务
+	t := &Tx{}
+	t.init(db)
+
+	// 记录数据库开启的事务
+	db.txs = append(db.txs, t)
+	n := len(db.txs)
+
+	// 释放元数据锁
+	db.metalock.Unlock()
+
+	// 更新数据库状态
+	db.statlock.Lock()
+	db.stats.TxN++
+	db.stats.OpenTxN = n
+	db.statlock.Unlock()
+
+	return t, nil
+}
+
+// 开始一个读写事务
+func (db *DB) beginRWTx() (*Tx, error) {
+	if db.readOnly {
+		return nil, ErrDatabaseReadOnly
+	}
+
+	db.rwlock.Lock()
+	db.metalock.Lock()
+	defer db.metalock.Unlock()
+
+	if !db.opened {
+		db.rwlock.Unlock()
+		return nil, ErrDatabaseNotOpen
+	}
+
+	// 创建事务
+	t := &Tx{writeable: true}
+	t.init(db)
+	db.rwtx = t
+
+	// TODO: 释放Freelist
+
+	return t, nil
 }
 
 func (db *DB) close() error {
@@ -242,6 +316,24 @@ func (db *DB) page(id pgid) *page {
 	return (*page)(unsafe.Pointer(&db.data[pos]))
 }
 
+// 数据库的元数据页, 返回事务id较大且通过验证的元数据
+func (db *DB) meta() *meta {
+	metaA := db.meta0
+	metaB := db.meta1
+	if db.meta1.txid > db.meta0.txid {
+		metaA = db.meta1
+		metaB = db.meta0
+	}
+
+	if err := metaA.validate(); err == nil {
+		return metaA
+	} else if err := metaB.validate(); err == nil {
+		return metaB
+	}
+
+	panic("DB.meta: invalid meta pages")
+}
+
 type meta struct {
 	magic    uint32
 	version  uint32
@@ -274,6 +366,11 @@ func (m *meta) validate() error {
 	return nil
 }
 
+// 元数据地址复制
+func (m *meta) copy(dest *meta) {
+	*dest = *m
+}
+
 // 打开数据库的可选项
 type Options struct {
 	// 获取文件锁的超时时间
@@ -286,6 +383,18 @@ type Options struct {
 
 var DefaultOptions = &Options{
 	Timeout: 0,
+}
+
+type Stats struct {
+	// Freelist 状态
+	FreePageN  int
+	PendingPageN int
+	FreeAlloc int
+	FreelistInuse int
+
+	// 事务状态
+	TxN int
+	OpenTxN int
 }
 
 // flock获取文件描述符的锁
