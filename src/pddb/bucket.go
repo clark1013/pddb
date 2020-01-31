@@ -9,11 +9,11 @@ type bucket struct {
 
 type Bucket struct {
 	*bucket
-	tx *Tx
-	buckets map[string]*Bucket
-	page *page
+	tx       *Tx
+	buckets  map[string]*Bucket
+	page     *page
 	rootNode *node
-	nodes map[pgid]*node
+	nodes    map[pgid]*node
 
 	FillPercent float64
 }

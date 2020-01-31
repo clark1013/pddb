@@ -5,10 +5,10 @@ type txid uint64
 // 只读事务或可读写事务
 type Tx struct {
 	writeable bool
-	db *DB
-	meta *meta
-	root Bucket
-	pages map[pgid]*page
+	db        *DB
+	meta      *meta
+	root      Bucket
+	pages     map[pgid]*page
 }
 
 func (tx *Tx) init(db *DB) {

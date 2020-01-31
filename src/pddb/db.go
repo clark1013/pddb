@@ -55,9 +55,9 @@ type DB struct {
 	meta0    *meta
 	meta1    *meta
 	freelist *freelist
-	rwtx *Tx
-	txs []*Tx
-	stats Stats
+	rwtx     *Tx
+	txs      []*Tx
+	stats    Stats
 
 	// 用于保护数据库重新映射的过程
 	mmaplock sync.RWMutex
@@ -387,13 +387,13 @@ var DefaultOptions = &Options{
 
 type Stats struct {
 	// Freelist 状态
-	FreePageN  int
-	PendingPageN int
-	FreeAlloc int
+	FreePageN     int
+	PendingPageN  int
+	FreeAlloc     int
 	FreelistInuse int
 
 	// 事务状态
-	TxN int
+	TxN     int
 	OpenTxN int
 }
 
