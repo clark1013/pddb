@@ -17,3 +17,29 @@ var (
 	// 数据库只读错误
 	ErrDatabaseReadOnly = errors.New("database read only")
 )
+
+// 事务错误
+var (
+	// 事务已被关闭
+	ErrTxClosed = errors.New("transaction closed")
+	// 事务不可写
+	ErrTxNotWriteable = errors.New("transaction not writeable")
+)
+
+// 数据错误
+var (
+	// bucket name 不可为空
+	ErrBucketNameRequired = errors.New("error bucket name required")
+	// key不可为空
+	ErrKeyRequired = errors.New("error key required")
+	// key太长
+	ErrKeyTooLarge = errors.New("error key too large")
+	// value太长
+	ErrValueTooLarge = errors.New("error value too large")
+	// 创建bucket时，不能重复创建
+	ErrBucketExsits = errors.New("error bucket exsits")
+	// ErrIncompatibleValue is returned when trying create or delete a bucket
+	// on an existing non-bucket key or when trying to create or delete a
+	// non-bucket key on an existing bucket key.
+	ErrIncompatibleValue = errors.New("incompatible value")
+)

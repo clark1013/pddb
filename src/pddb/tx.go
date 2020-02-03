@@ -36,7 +36,29 @@ func (tx *Tx) Writeable() bool {
 	return tx.writeable
 }
 
+// 提交事务
 func (tx *Tx) Commit() error {
 	// TODO 事务提交
 	return nil
+}
+
+// 创建桶
+func (tx *Tx) CreateBucket(name []byte) (*Bucket, error) {
+	return tx.root.CreateBucket(name)
+}
+
+func (tx *Tx) Cursor() *Cursor {
+	return tx.root.Cursor()
+}
+
+func (tx *Tx) page(id pgid) *page {
+	// 先检查脏页
+	if tx.pages != nil {
+		if p, ok := tx.pages[id]; ok {
+			return p
+		}
+	}
+
+	// 脏页没有数据直接从数据库获取
+	return tx.db.page(id)
 }

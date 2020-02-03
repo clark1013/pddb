@@ -30,6 +30,8 @@ const maxMapSize = 0x7FFFFFFF // 2GB
 // 数据库映射过程中, 最大允许步长
 const maxMmapStep = 1 << 30 // 1GB
 
+const maxAllocSize = 0xFFFFFFF
+
 // 数据库对象
 type DB struct {
 	// 单个batch的大小上限, 如果<=0, 禁用batch
