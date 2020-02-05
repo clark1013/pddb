@@ -7,6 +7,11 @@ import (
 const pageHeaderSize = int(unsafe.Offsetof((*page)(nil).ptr))
 
 const (
+	leafPageElementSize   = int(unsafe.Sizeof(leafPageElement{}))
+	branchPageElementSize = int(unsafe.Sizeof(branchPageElement{}))
+)
+
+const (
 	branchPageFlag   = 0x01
 	leafPageFlag     = 0x02
 	metaPageFlag     = 0x04
@@ -32,7 +37,7 @@ func (p *page) meta() *meta {
 }
 
 func (p *page) leafPageElement(index uint16) *leafPageElement {
-	return ((*[0x7FFFFFF]leafPageElement)(unsafe.Pointer(&p.ptr)))[index]
+	return &((*[0x7FFFFFF]leafPageElement)(unsafe.Pointer(&p.ptr)))[index]
 }
 
 func (p *page) leafPageElements() []leafPageElement {
@@ -40,6 +45,10 @@ func (p *page) leafPageElements() []leafPageElement {
 		return nil
 	}
 	return ((*[0x7FFFFFF]leafPageElement)(unsafe.Pointer(&p.ptr)))[:]
+}
+
+func (p *page) branchPageElement(index uint16) *branchPageElement {
+	return &((*[0x7FFFFFF]branchPageElement)(unsafe.Pointer(&p.ptr)))[index]
 }
 
 type leafPageElement struct {
@@ -57,4 +66,15 @@ func (n *leafPageElement) key() []byte {
 func (n *leafPageElement) value() []byte {
 	buf := (*[maxAllocSize]byte)(unsafe.Pointer(n))
 	return (*[maxAllocSize]byte)(unsafe.Pointer(&buf[n.pos+n.ksize]))[:n.vsize:n.vsize]
+}
+
+type branchPageElement struct {
+	pos   uint32
+	ksize uint32
+	pgid  pgid
+}
+
+func (n *branchPageElement) key() []byte {
+	buf := (*[maxAllocSize]byte)(unsafe.Pointer(n))
+	return (*[maxAllocSize]byte)(unsafe.Pointer(&buf[n.pos]))[:n.ksize:n.ksize]
 }

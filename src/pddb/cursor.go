@@ -2,6 +2,8 @@ package pddb
 
 import (
 	"sort"
+	"bytes"
+	"fmt"
 )
 
 type Cursor struct {
@@ -10,14 +12,14 @@ type Cursor struct {
 }
 
 // 将数据库游标移动到指定key，如果key不存在，则指向下一个key
-func (c *Cursor) seek(seek []byte) (key []byte, value []byte, flags unit32) {
+func (c *Cursor) seek(seek []byte) (key []byte, value []byte, flags uint32) {
 	if c.bucket.tx.db == nil {
 		panic("cursor.seek(): trasaction closed")
 	}
 
 	c.stack = c.stack[:0]
 	c.search(key, c.bucket.root)
-	ref := &c.stack[len(stack)-1]
+	ref := &c.stack[len(c.stack)-1]
 
 	if ref.index >= ref.count() {
 		return nil, nil, 0
@@ -42,12 +44,14 @@ func (c *Cursor) search(key []byte, pgid pgid) {
 func (c *Cursor) nsearch(key []byte) {
 	e := &c.stack[len(c.stack)-1]
 	p, n := e.page, e.node
+	fmt.Println(p, n)
 
 	if n != nil {
 		index := sort.Search(len(n.inodes), func(i int) bool {
-			return bytes.Compare(c.inodes[i].key, key) != -1
+			return bytes.Compare(n.inodes[i].key, key) != -1
 		})
 		e.index = index
+		return
 	}
 
 	inodes := p.leafPageElements()
@@ -58,9 +62,9 @@ func (c *Cursor) nsearch(key []byte) {
 }
 
 // 获取当前游标处的键和值
-func (c *Cursor) keyValue() ([]byte, []byte, unit32) {
+func (c *Cursor) keyValue() ([]byte, []byte, uint32) {
 	ref := &c.stack[len(c.stack)-1]
-	if ref.count == 0 || ref.index >= ref.count() {
+	if ref.count() == 0 || ref.index >= ref.count() {
 		return nil, nil, 0
 	}
 
@@ -71,8 +75,26 @@ func (c *Cursor) keyValue() ([]byte, []byte, unit32) {
 	}
 
 	// 从page取值
-	elem := ref.page.leafPageElement(unit16(ref.index))
+	elem := ref.page.leafPageElement(uint16(ref.index))
 	return elem.key(), elem.value(), elem.flags
+}
+
+// 游标当前指向的节点
+func (c *Cursor) node() *node {
+	if len(c.stack) == 0 {
+		panic("accessing node with zero-length cursor stack")
+	}
+
+	if ref := &c.stack[len(c.stack)-1]; ref.node != nil && ref.isLeaf() {
+		return ref.node
+	}
+
+	n := c.stack[0].node
+	if n == nil {
+		n = c.bucket.node(c.stack[0].page.id, nil)
+	}
+
+	return n
 }
 
 type elemRef struct {

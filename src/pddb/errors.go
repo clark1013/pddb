@@ -37,7 +37,7 @@ var (
 	// value太长
 	ErrValueTooLarge = errors.New("error value too large")
 	// 创建bucket时，不能重复创建
-	ErrBucketExsits = errors.New("error bucket exsits")
+	ErrBucketExists = errors.New("error bucket exsits")
 	// ErrIncompatibleValue is returned when trying create or delete a bucket
 	// on an existing non-bucket key or when trying to create or delete a
 	// non-bucket key on an existing bucket key.

@@ -1,25 +1,26 @@
 package main
 
 import (
-	"pddb"
 	"fmt"
-	// "strconv"
+	"pddb"
+	"strconv"
 )
 
 func insert(db *pddb.DB) error {
 	tx, err := db.Begin(true)
 	if err != nil {
-	    return err
+		return err
 	}
-	defer tx.Rollback()
+	// defer tx.Rollback()
 
-	var b *pddb.Bucket
+	// var b *pddb.Bucket
 	// Use the transaction...
-	b, err = tx.CreateBucket([]byte("tBucket"))
-	if err != nil {
-	    return err
+	for i:=0; i<10; i++ {
+		_, err = tx.CreateBucket([]byte(strconv.Itoa(i)))
+		if err != nil {
+			return err
+		}
 	}
-
 	// b = tx.Bucket([]byte("tBucket"))
 	// err = b.Put([]byte("answer"), []byte("111"))
 
@@ -27,8 +28,8 @@ func insert(db *pddb.DB) error {
 	// 	b.Put([]byte(strconv.Itoa(i)), []byte("6"))
 	// }
 
-	r := b.Get([]byte("100"))
-	fmt.Println("result is", r)
+	// r := b.Get([]byte("100"))
+	// fmt.Println("result is", r)
 
 	// // Commit the transaction and check for error.
 	// if err := tx.Commit(); err != nil {
