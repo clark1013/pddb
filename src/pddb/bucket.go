@@ -164,6 +164,16 @@ func (b *Bucket) node(pgid pgid, parent *node) *node {
 	return n
 }
 
+// 重新平衡所有子节点
+func (b *Bucket) rebalance() {
+	for _, n := range b.nodes {
+		n.rebalance()
+	}
+	for _, child := range b.buckets {
+		child.rebalance()
+	}
+}
+
 func newBucket(tx *Tx) Bucket {
 	b := Bucket{tx: tx, FillPercent: DefaultFillPercent}
 	if tx.writeable {

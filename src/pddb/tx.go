@@ -5,6 +5,7 @@ type txid uint64
 // 只读事务或可读写事务
 type Tx struct {
 	writeable bool
+	managed   bool
 	db        *DB
 	meta      *meta
 	root      Bucket
@@ -38,7 +39,21 @@ func (tx *Tx) Writeable() bool {
 
 // 提交事务
 func (tx *Tx) Commit() error {
-	// TODO 事务提交
+	if tx.managed {
+		panic("commit on managed transation not allowed")
+	} else if tx.db == nil {
+		return ErrTxClosed
+	} else if !tx.writeable {
+		return ErrTxNotWriteable
+	}
+	// 删除过节点需要重新平衡
+	tx.root.rebalance()
+
+	// 数据放到脏页
+	if err := tx.root.spill(); err != nil {
+		tx.rollback()
+		return err
+	}
 	return nil
 }
 

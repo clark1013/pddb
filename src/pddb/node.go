@@ -12,6 +12,7 @@ import (
 type node struct {
 	bucket *Bucket
 	isLeaf bool
+	unbalanced bool
 	pgid pgid
 	key []byte
 	parent *node
@@ -138,11 +139,21 @@ func (n *node) put(oldKey, newKey, value []byte, pgid pgid, flags uint32) {
 		copy(n.inodes[index+1:], n.inodes[index:])
 	}
 
-	inode := n.inodes[index]
+	inode := &n.inodes[index]
 	inode.key = newKey
 	inode.value = value
 	inode.flags = flags
 	inode.pgid = pgid
+}
+
+// 节点数量不足时与兄弟节点结合
+func (n *node) rebalance() {
+	if !n.unbalance {
+		return
+	}
+	n.unbalanced = false
+
+	// TODO rebalance
 }
 
 // dump writes the contents of the node to STDERR for debugging purposes.
