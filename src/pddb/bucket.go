@@ -2,12 +2,18 @@ package pddb
 
 import (
 	"bytes"
+	"fmt"
 	"unsafe"
 )
 
 const (
 	MaxKeySize   = 32768
 	MaxValueSize = (1 << 31) - 2
+)
+
+const (
+	minFillPercent = 0.1
+	maxFillPercent = 1.0
 )
 
 const DefaultFillPercent = 0.5
@@ -172,6 +178,94 @@ func (b *Bucket) rebalance() {
 	for _, child := range b.buckets {
 		child.rebalance()
 	}
+}
+
+// 将bucket的所有node写到脏页
+func (b *Bucket) spill() error {
+	// 先spill所有子bucket
+	for name, child := range b.buckets {
+		var value []byte
+		if child.inlineable() {
+			child.free()
+			value = child.write()
+		} else {
+			if err := child.spill(); err != nil {
+				return err
+			}
+			// 更新子bucket的头
+			value = make([]byte, unsafe.Sizeof(bucket{}))
+			var bucket = (*bucket)(unsafe.Pointer(&value[0]))
+			*bucket = *child.bucket
+		}
+
+		if child.rootNode == nil {
+			continue
+		}
+
+		// 更新父节点
+		var c = b.Cursor()
+		k, _, flags := c.seek([]byte(name))
+		if !bytes.Equal([]byte(name), k) {
+			panic(fmt.Sprintf("misplaced bucket header: %x -> %x", []byte(name), k))
+		}
+		if flags&bucketLeafFlag == 0 {
+			panic(fmt.Sprintf("unexpected bucket header flag: %x", flags))
+		}
+		c.node().put([]byte(name), []byte(name), value, 0, bucketLeafFlag)
+	}
+
+	if b.rootNode == nil {
+		return nil
+	}
+
+	// spill nodes
+	if err := b.rootNode.spill(); err != nil {
+		return err
+	}
+	b.rootNode = b.rootNode.root()
+
+	// 更新bucket的root node
+	if b.rootNode.pgid >= b.tx.meta.pgid {
+		panic(fmt.Sprintf("pgid (%d) above high water mark (%d)", b.rootNode.pgid, b.tx.meta.pgid))
+	}
+	b.root = b.rootNode.pgid
+
+	return nil
+}
+
+// bucket足够小且不含子bucket, 可以行内写, 否则不能行内写
+func (b *Bucket) inlineable() bool {
+	var n = b.rootNode
+
+	// 必须只含有一个叶子节点
+	if n == nil || !n.isLeaf {
+		return false
+	}
+
+	var size = pageHeaderSize
+	for _, inode := range n.inodes {
+		size += leafPageElementSize + len(inode.key) + len(inode.value)
+		if inode.flags&bucketLeafFlag != 0 {
+			return false
+		} else if size > b.maxInlineBucketSize() {
+			return false
+		}
+	}
+
+	return true
+}
+
+// bucket符合inline条件的最大大小
+func (b *Bucket) maxInlineBucketSize() int {
+	return b.tx.db.pageSize / 4
+}
+
+// 递归释放bucket内的所有page
+func (b *Bucket) free() {
+	if b.root == 0 {
+		return
+	}
+	// TODO
 }
 
 func newBucket(tx *Tx) Bucket {

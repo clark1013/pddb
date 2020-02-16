@@ -1,9 +1,8 @@
 package pddb
 
 import (
-	"sort"
 	"bytes"
-	"fmt"
+	"sort"
 )
 
 type Cursor struct {
@@ -44,7 +43,6 @@ func (c *Cursor) search(key []byte, pgid pgid) {
 func (c *Cursor) nsearch(key []byte) {
 	e := &c.stack[len(c.stack)-1]
 	p, n := e.page, e.node
-	fmt.Println(p, n)
 
 	if n != nil {
 		index := sort.Search(len(n.inodes), func(i int) bool {

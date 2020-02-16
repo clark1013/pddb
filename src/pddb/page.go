@@ -6,6 +6,8 @@ import (
 
 const pageHeaderSize = int(unsafe.Offsetof((*page)(nil).ptr))
 
+const minKeysPerPage = 2
+
 const (
 	leafPageElementSize   = int(unsafe.Sizeof(leafPageElement{}))
 	branchPageElementSize = int(unsafe.Sizeof(branchPageElement{}))
@@ -78,3 +80,15 @@ func (n *branchPageElement) key() []byte {
 	buf := (*[maxAllocSize]byte)(unsafe.Pointer(n))
 	return (*[maxAllocSize]byte)(unsafe.Pointer(&buf[n.pos]))[:n.ksize:n.ksize]
 }
+
+type pgids []pgid
+
+func (s pgids) Len() int           { return len(s) }
+func (s pgids) Swap(i, j int)      { s[i], s[j] = s[j], s[i] }
+func (s pgids) Less(i, j int) bool { return s[i] < s[j] }
+
+type pages []*page
+
+func (s pages) Len() int           { return len(s) }
+func (s pages) Swap(i, j int)      { s[i], s[j] = s[j], s[i] }
+func (s pages) Less(i, j int) bool { return s[i].id < s[j].id }

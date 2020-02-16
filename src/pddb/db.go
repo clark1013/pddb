@@ -54,6 +54,7 @@ type DB struct {
 	dataref  []byte
 	data     *[maxMapSize]byte
 	datasz   int
+	filesz   int
 	meta0    *meta
 	meta1    *meta
 	freelist *freelist
@@ -336,6 +337,55 @@ func (db *DB) meta() *meta {
 	panic("DB.meta: invalid meta pages")
 }
 
+func (db *DB) allocate(count int) (*page, error) {
+	// 分配临时buffer
+	var buf []byte
+	if count == 1 {
+		buf = db.pagePool.Get().([]byte)
+	} else {
+		buf = make([]byte, count*db.pageSize)
+	}
+	p := (*page)(unsafe.Pointer(&buf[0]))
+	p.overflow = uint32(count - 1)
+
+	// 如果freelist中有可用空间, 直接从freelist中取
+	if p.id = db.freelist.allocate(count); p.id != 0 {
+		return p, nil
+	}
+
+	// 如果内存不够, 重新申请内存
+	p.id = db.rwtx.meta.pgid
+	var minsz = int((p.id+pgid(count))+1) * db.pageSize
+	if minsz >= db.datasz {
+		if err := db.mmap(minsz); err != nil {
+			return nil, fmt.Errorf("mmap allocate error: %s", err)
+		}
+	}
+	// pgid移动到高水位
+	db.rwtx.meta.pgid += pgid(count)
+
+	return p, nil
+}
+
+// 将数据库大小增长到指定大小
+func (db *DB) grow(sz int) error {
+	if sz <= db.filesz {
+		return nil
+	}
+	if db.datasz < db.AllocSize {
+		sz = db.datasz
+	} else {
+		sz += db.AllocSize
+	}
+	db.filesz = sz
+	return nil
+}
+
+// TODO
+func (db *DB) removeTx(tx *Tx) {
+	return
+}
+
 type meta struct {
 	magic    uint32
 	version  uint32
@@ -371,6 +421,22 @@ func (m *meta) validate() error {
 // 元数据地址复制
 func (m *meta) copy(dest *meta) {
 	*dest = *m
+}
+
+// 将元数据写入到page
+func (m *meta) write(p *page) {
+	if m.root.root >= m.pgid {
+		panic(fmt.Sprintf("root bucket pgid (%d) above high water mark (%d)", m.root.root, m.pgid))
+	} else if m.freelist >= m.pgid {
+		panic(fmt.Sprintf("freelist pgid (%d) above high water mark (%d)", m.freelist, m.pgid))
+	}
+
+	// page id可以被事务id确定
+	p.id = pgid(m.txid % 2)
+	p.flags |= metaPageFlag
+
+	m.checksum = m.sum64()
+	m.copy(p.meta())
 }
 
 // 打开数据库的可选项
