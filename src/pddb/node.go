@@ -76,7 +76,7 @@ func (n *node) write(p *page) {
 	}
 
 	// FOR DEBUG
-	n.dump()
+	// n.dump()
 }
 
 // 从page初始化node

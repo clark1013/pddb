@@ -39,7 +39,7 @@ func insert(db *pddb.DB) error {
 }
 
 func main() {
-	db, err := pddb.Open("test", 0666, nil)
+	db, err := pddb.Open("test.db", 0666, nil)
 	if err != nil {
 		fmt.Println("error open")
 	}
