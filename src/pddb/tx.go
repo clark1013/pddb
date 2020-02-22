@@ -3,6 +3,7 @@ package pddb
 import (
 	"sort"
 	"unsafe"
+	"fmt"
 )
 
 type txid uint64
@@ -45,7 +46,7 @@ func (tx *Tx) Writeable() bool {
 // 提交事务
 func (tx *Tx) Commit() error {
 	if tx.managed {
-		panic("commit on managed transation not allowed")
+		panic(fmt.Sprintf("commit on managed transation not allowed"))
 	} else if tx.db == nil {
 		return ErrTxClosed
 	} else if !tx.writeable {
@@ -100,6 +101,17 @@ func (tx *Tx) Commit() error {
 	// 最终关闭事务
 	tx.close()
 
+	return nil
+}
+
+// 回滚事务
+func (tx *Tx) Rollback() error {
+	if tx.managed {
+		panic(fmt.Sprintf("rollback on managed transation not allowed"))
+	} else if tx.db == nil {
+		return ErrTxClosed
+	}
+	tx.rollback()
 	return nil
 }
 

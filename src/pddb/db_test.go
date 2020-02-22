@@ -118,6 +118,7 @@ func MustClose(db *pddb.DB) {
 	if err := db.Close(); err != nil {
 		panic(err)
 	}
+	defer os.Remove(db.Path())
 }
 
 // 返回临时文件路径

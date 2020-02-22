@@ -90,10 +90,71 @@ func (db *DB) Path() string {
 
 // 关闭数据库, 所有的资源引用必须释放
 func (db *DB) Close() error {
-	db.mmaplock.Lock()
-	defer db.mmaplock.Unlock()
+	db.mmaplock.RLock()
+	defer db.mmaplock.RUnlock()
 
 	return db.close()
+}
+
+// 读事务函数装饰器
+func (db *DB) View(fn func(*Tx) error) error {
+	tx, err := db.Begin(false)
+	if err != nil {
+		return err
+	}
+
+	// 执行异常中断需要确保回滚
+	defer func() {
+		if tx.db != nil {
+			tx.rollback()
+		}
+	}()
+
+	// 添加标识确保事务不会被手动回滚
+	tx.managed = true
+
+	// 执行函数, 如果报错则回滚
+	err = fn(tx)
+	tx.managed = false
+	if err != nil {
+		tx.Rollback()
+		return err
+	}
+
+	err = tx.Rollback()
+	if err != nil {
+		return err
+	}
+
+	return nil
+}
+
+// 写事务装饰器
+func (db *DB) Update(fn func(*Tx) error) error {
+	tx, err := db.Begin(false)
+	if err != nil {
+		return err
+	}
+
+	// 执行异常中断需要确保回滚
+	defer func() {
+		if tx.db != nil {
+			tx.rollback()
+		}
+	}()
+
+	// 添加标识确保事务不会被手动提交
+	tx.managed = true
+
+	// 执行函数, 如果报错则回滚
+	err = fn(tx)
+	tx.managed = false
+	if err != nil {
+		tx.Rollback()
+		return err
+	}
+
+	return tx.Commit()
 }
 
 // 开始一个只读事务
