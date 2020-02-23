@@ -71,8 +71,25 @@ func (b *Bucket) CreateBucket(key []byte) (*Bucket, error) {
 	return b.Bucket(key), nil
 }
 
-func (b *Bucket) Bucket(key []byte) *Bucket {
-	return nil
+func (b *Bucket) Bucket(name []byte) *Bucket {
+	if b.buckets != nil {
+		if child := b.buckets[string(name)]; child != nil {
+			return child
+		}
+	}
+
+	c := b.Cursor()
+	k, v, flags := c.seek(name)
+
+	if !bytes.Equal(name, k) || (flags&bucketLeafFlag) == 0 {
+		return nil
+	}
+
+	var child = b.openBucket(v)
+	if b.buckets != nil {
+		b.buckets[string(name)] = child
+	}
+	return child
 }
 
 func (b *Bucket) Cursor() *Cursor {
@@ -109,6 +126,22 @@ func (b *Bucket) Put(key []byte, value []byte) error {
 	c.node().put(key, key, value, 0, 0)
 
 	return nil
+}
+
+func (b *Bucket) openBucket(value []byte) *Bucket {
+	var child = newBucket(b.tx)
+	if b.tx.writeable {
+		child.bucket = &bucket{}
+		*child.bucket = *(*bucket)(unsafe.Pointer(&value[0]))
+	} else {
+		child.bucket = (*bucket)(unsafe.Pointer(&value[0]))
+	}
+
+	// Save a reference to the inline page if the bucket is inline.
+	if child.root == 0 {
+		child.page = (*page)(unsafe.Pointer(&value[bucketHeaderSize]))
+	}
+	return &child
 }
 
 // TODO

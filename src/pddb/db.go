@@ -131,7 +131,7 @@ func (db *DB) View(fn func(*Tx) error) error {
 
 // 写事务装饰器
 func (db *DB) Update(fn func(*Tx) error) error {
-	tx, err := db.Begin(false)
+	tx, err := db.Begin(true)
 	if err != nil {
 		return err
 	}

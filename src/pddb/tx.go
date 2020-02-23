@@ -115,9 +115,14 @@ func (tx *Tx) Rollback() error {
 	return nil
 }
 
-// 创建桶
+// 创建bucket
 func (tx *Tx) CreateBucket(name []byte) (*Bucket, error) {
 	return tx.root.CreateBucket(name)
+}
+
+// 获取bucket
+func (tx *Tx) Bucket(name []byte) *Bucket {
+	return tx.root.Bucket(name)
 }
 
 func (tx *Tx) Cursor() *Cursor {
