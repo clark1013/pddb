@@ -15,7 +15,7 @@ func insert(db *pddb.DB) error {
 
 	// var b *pddb.Bucket
 	// Use the transaction...
-	for i := 0; i < 100; i++ {
+	for i := 0; i < 10; i++ {
 		_, err = tx.CreateBucket([]byte(strconv.Itoa(i)))
 		if err != nil {
 			return err

@@ -17,7 +17,7 @@ func (c *Cursor) seek(seek []byte) (key []byte, value []byte, flags uint32) {
 	}
 
 	c.stack = c.stack[:0]
-	c.search(key, c.bucket.root)
+	c.search(seek, c.bucket.root)
 	ref := &c.stack[len(c.stack)-1]
 
 	if ref.index >= ref.count() {
