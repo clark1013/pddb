@@ -93,6 +93,38 @@ func (f *freelist) pending_count() int {
 	return count
 }
 
+func (f *freelist) read(p *page) {
+	idx, count := 0, int(p.count)
+	if count == 0xFFFF {
+		idx = 1
+		count = int(((*[maxAllocSize]pgid)(unsafe.Pointer(&p.ptr)))[0])
+	}
+
+	if count == 0 {
+		f.ids = nil
+	} else {
+		ids := ((*[maxAllocSize]pgid)(unsafe.Pointer(&p.ptr)))[idx:count]
+		f.ids = make([]pgid, len(ids))
+		copy(f.ids, ids)
+
+		sort.Sort(pgids(f.ids))
+	}
+
+	f.reindex()
+}
+
+func (f *freelist) reindex() {
+	f.cache = make(map[pgid]bool, len(f.ids))
+	for _, id := range f.ids {
+		f.cache[id] = true
+	}
+	for _, pendingIDs := range f.pending {
+		for _, pendingID := range pendingIDs {
+			f.cache[pendingID] = true
+		}
+	}
+}
+
 // 将页写入freelist page
 func (f *freelist) write(p *page) error {
 	// 更新page头

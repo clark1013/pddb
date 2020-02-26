@@ -663,6 +663,7 @@ func Open(path string, mode os.FileMode, options *Options) (*DB, error) {
 
 	// 读取freelist
 	db.freelist = newFreelist()
-	// TODO
+	db.freelist.read(db.page(db.meta().freelist))
+
 	return db, nil
 }
