@@ -6,31 +6,31 @@ import (
 	"strconv"
 )
 
-func insert(db *pddb.DB) error {
+func createBucket(db *pddb.DB) (*pddb.Tx, error) {
 	tx, err := db.Begin(true)
-
 	if err != nil {
-		return err
+		return nil, err
 	}
-	// defer tx.Rollback()
-
-	// var b *pddb.Bucket
-	// Use the transaction...
 	for i := 0; i < 10; i++ {
 		_, err = tx.CreateBucket([]byte(strconv.Itoa(i)))
 		if err != nil {
-			return err
+			return tx, err
 		}
 	}
-	// b = tx.Bucket([]byte("tBucket"))
-	// err = b.Put([]byte("answer"), []byte("111"))
+	// Commit the transaction and check for error.
+	if err := tx.Commit(); err != nil {
+		return tx, err
+	}
+	return tx, nil
+}
 
-	// for i:=0; i<2; i++ {
-	// 	b.Put([]byte(strconv.Itoa(i)), []byte("6"))
-	// }
+func putBucket(tx *pddb.Tx) error {
+	b := tx.Bucket([]byte("0"))
 
-	// r := b.Get([]byte("100"))
-	// fmt.Println("result is", r)
+	err := b.Put([]byte("0"), []byte("11"))
+	if err != nil {
+		return err
+	}
 
 	// Commit the transaction and check for error.
 	if err := tx.Commit(); err != nil {
@@ -46,8 +46,13 @@ func main() {
 	}
 	defer db.Close()
 
-	err = insert(db)
+	tx, _ := createBucket(db)
+	if tx == nil {
+		fmt.Println("no tx")
+		return
+	}
+	err = putBucket(tx)
 	if err != nil {
-		fmt.Println("error insert %s", err)
+		fmt.Println("put error")
 	}
 }

@@ -118,9 +118,11 @@ func (b *Bucket) Put(key []byte, value []byte) error {
 	}
 
 	c := b.Cursor()
-	// k, _, flags := c.seek(key)
+	k, _, flags := c.seek(key)
 
-	// TODO: check keys
+	if bytes.Equal(key, k) && (flags&bucketLeafFlag) != 0 {
+		return ErrIncompatibleValue
+	}
 
 	key = cloneBytes(key)
 	c.node().put(key, key, value, 0, 0)
