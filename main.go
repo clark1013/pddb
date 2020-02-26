@@ -8,6 +8,7 @@ import (
 
 func insert(db *pddb.DB) error {
 	tx, err := db.Begin(true)
+
 	if err != nil {
 		return err
 	}

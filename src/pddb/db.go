@@ -30,7 +30,7 @@ const maxMapSize = 0x7FFFFFFF // 2GB
 // 数据库映射过程中, 最大允许步长
 const maxMmapStep = 1 << 30 // 1GB
 
-const maxAllocSize = 0xFFFFFFF
+const maxAllocSize = 0x7FFFFFFF
 
 // 数据库对象
 type DB struct {
@@ -315,7 +315,9 @@ func (db *DB) mmap(minsz int) error {
 		return err
 	}
 
-	// TODO: 取消映射前先取消引用
+	if db.rwtx != nil {
+		db.rwtx.root.dereference()
+	}
 
 	// 取消映射
 	if err := db.munmap(); err != nil {

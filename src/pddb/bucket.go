@@ -301,6 +301,17 @@ func (b *Bucket) free() {
 	// TODO
 }
 
+// 取消对于文件的引用
+func (b *Bucket) dereference() {
+	if b.rootNode != nil {
+		b.rootNode.root().dereference()
+	}
+
+	for _, child := range b.buckets {
+		child.dereference()
+	}
+}
+
 func newBucket(tx *Tx) Bucket {
 	b := Bucket{tx: tx, FillPercent: DefaultFillPercent}
 	if tx.writeable {

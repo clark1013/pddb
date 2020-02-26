@@ -292,6 +292,32 @@ func (n *node) pageElementSize() int {
 	return branchPageElementSize
 }
 
+// 取消引用
+func (n *node) dereference() {
+	if n.key != nil {
+		key := make([]byte, len(n.key))
+		copy(key, n.key)
+		n.key = key
+	}
+
+	for i := range n.inodes {
+		inode := &n.inodes[i]
+
+		key := make([]byte, len(inode.key))
+		copy(key, inode.key)
+		inode.key = key
+
+		value := make([]byte, len(inode.value))
+		copy(value, inode.value)
+		inode.value = value
+	}
+
+	// Recursively dereference children.
+	for _, child := range n.children {
+		child.dereference()
+	}
+}
+
 // dump writes the contents of the node to STDERR for debugging purposes.
 func (n *node) dump() {
 	// Write node header.
